@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可视化编辑工具</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Noto Sans SC',sans-serif;background:#fff;overflow:hidden;color:#252525}
+        .app-container{display:flex;height:100vh;width:100%;overflow:hidden;position:relative}
+        .module-area{width:270px;background:#fff;border-right:1px solid #252525;padding:20px;overflow-y:auto;border-radius:8px;flex-shrink:0}
+        .module-category{margin-bottom:25px}.module-category h3{font-size:14px;color:#252525;margin-bottom:12px;font-weight:500}
+        .module-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}.module-item{background:#fff;border:1px solid #252525;border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;color:#252525}
+        .module-item:hover{background:#e9ecef;border-color:#007bff}
+        .canvas-area{flex:1;background:#fff;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto;min-width:0}
+        .canvas-container-wrapper{position:relative;transform-origin:center center;transition:transform 0.3s ease}
+        .canvas-container{position:relative;width:700px;height:300px;background:#fff;border:2px solid #252525;box-shadow:0 4px 12px rgba(0,0,0,.1);border-radius:8px}
+        .canvas-element{position:absolute;border:1px solid #252525;background:#fff;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;overflow:hidden;word-break:break-word;color:#252525;font-family:'Noto Sans SC',sans-serif;cursor:move;user-select:none;border-radius:6px}
+        .canvas-element.selected{border:2px solid #252525;box-shadow:0 0 0 1px #252525}.svg-element{background:#fff;border:1px solid #252525;border-radius:6px}
+        .svg-element svg{width:100%;height:100%;border-radius:4px}.divider-element{background:transparent;border:none;padding:0;border-radius:6px}
+        .divider-element .element-content{width:100%;height:2px;background:#252525;border-radius:1px}.edit-section{margin-bottom:25px;padding:15px;background:#fff;border-radius:8px;border:1px solid #252525}
+        .edit-section h3{font-size:14px;color:#252525;margin-bottom:15px;font-weight:600}.form-group{margin-bottom:15px}.form-group label{display:block;font-size:12px;color:#252525;margin-bottom:5px}
+        .input-with-buttons{display:flex;align-items:center;gap:5px}.input-with-buttons input{flex:1;padding:6px;border:1px solid #252525;border-radius:6px;font-size:12px;width:60px}
+        .adjust-button{width:24px;height:24px;border:1px solid #252525;background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#252525}
+        .adjust-button:hover{background:#f8f9fa}.color-picker,.text-color-picker{width:100%;height:36px;border:1px solid #252525;border-radius:6px;cursor:pointer}
+        .font-select{width:100%;padding:8px;border:1px solid #252525;border-radius:6px;font-size:12px;background:#fff;color:#252525}.text-options{display:none}
+        .button-group{display:flex;flex-direction:column;gap:8px;margin-top:10px}.action-button{padding:8px 12px;border:1px solid #252525;background:#fff;color:#252525;border-radius:6px;cursor:pointer;font-size:12px;text-align:center;width:100%;transition:.2s}
+        .action-button:hover{background:#f8f9fa}.hidden{display:none}.file-input{display:none}
+        .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
+        .modal-content{background:#fff;padding:20px;border-radius:8px;border:1px solid #252525;width:80%;max-width:600px;max-height:80vh;overflow-y:auto}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #252525}
+        .modal-title{font-size:16px;font-weight:600;color:#252525}.close-button{background:none;border:none;font-size:18px;cursor:pointer;color:#252525;border-radius:4px;padding:2px 6px}
+        .close-button:hover{background:#f8f9fa}.code-display{background:#f8f9fa;padding:15px;border-radius:6px;border:1px solid #252525;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;margin-bottom:15px}
+        .copy-code-button{padding:8px 16px;border:1px solid #252525;background:#fff;color:#252525;border-radius:6px;cursor:pointer;font-size:12px;transition:.2s}.copy-code-button:hover{background:#f8f9fa}
+        .layer-list{max-height:200px;overflow-y:auto;margin-bottom:15px}.layer-item{display:flex;align-items:center;justify-content:space-between;padding:8px;border:1px solid #e0e0e0;border-radius:4px;margin-bottom:5px;cursor:pointer}
+        .layer-item.selected{background:#f0f4ff;border-color:#007bff}.layer-item:hover{background:#f8f9fa}.layer-name{flex:1;font-size:12px;color:#252525}
+        .layer-controls{display:flex;gap:5px}.layer-control-btn{width:24px;height:24px;border:1px solid #252525;background:#fff;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#252525}
+        .layer-control-btn svg{width:16px;height:16px}.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}.preset-item{border:1px solid #252525;border-radius:6px;padding:10px;text-align:center;cursor:pointer;background:#fff}
+        .preset-item:hover{background:#f8f9fa}.device-preview{display:flex;gap:10px;margin-bottom:15px}.device-btn{padding:8px 12px;border:1px solid #252525;background:#fff;color:#252525;border-radius:6px;cursor:pointer;font-size:12px;flex:1;text-align:center}
+        .device-btn.active{background:#252525;color:#fff}.upload-options{display:flex;flex-direction:column;gap:10px;margin:15px 0}
+        .upload-option{padding:12px;border:1px solid #252525;background:#fff;color:#252525;border-radius:6px;cursor:pointer;text-align:center;transition:.2s}
+        .upload-option:hover{background:#f8f9fa}.text-input-area{width:100%;padding:10px;border:1px solid #252525;border-radius:6px;font-size:12px;min-height:100px;resize:vertical}
+        .tab-container{margin-bottom:15px}.tab-buttons{display:flex;border-bottom:1px solid #252525}.tab-button{padding:10px 15px;border:1px solid #252525;border-bottom:none;background:#fff;color:#252525;cursor:pointer;border-radius:6px 6px 0 0;margin-right:5px}
+        .tab-button.active{background:#252525;color:#fff}.tab-content{padding:15px 0}.api-input{width:100%;padding:8px;border:1px solid #252525;border-radius:6px;margin-bottom:10px;font-size:12px}
+        .optimize-options{display:flex;flex-direction:column;gap:8px}.optimize-option{display:flex;align-items:center;gap:8px}.optimize-checkbox{width:16px;height:16px}
+        .asset-preview{width:100%;height:80px;border:1px dashed #252525;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden}
+        .asset-preview img{max-width:100%;max-height:100%}
+        
+        /* 响应式适配相关样式 */
+        .screen-info{position:absolute;top:10px;right:10px;background:rgba(37,37,37,0.9);color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;z-index:100;display:none}
+        .responsive-controls{position:absolute;top:10px;right:60px;display:flex;gap:5px;z-index:100}
+        .zoom-btn{width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #252525;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px}
+        .zoom-btn:hover{background:#f8f9fa}
+        .zoom-level{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(37,37,37,0.9);color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;z-index:100}
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .app-container{flex-direction:column;height:100vh}
+            .module-area{width:100%;height:auto;max-height:40vh;border-right:none;border-bottom:1px solid #252525}
+            .canvas-area{padding:10px}
+            .responsive-controls{top:5px;right:5px}
+            .zoom-level{top:5px}
+        }
+        
+        @media (max-width: 480px) {
+            .module-area{max-height:35vh;padding:10px}
+            .module-list{grid-template-columns:repeat(3,1fr)}
+            .edit-section{padding:10px}
+            .tab-buttons{flex-wrap:wrap}
+            .tab-button{padding:6px 10px;font-size:11px;margin-bottom:2px}
+            .canvas-area{padding:5px}
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <!-- 响应式控制按钮 -->
+        <div class="screen-info" id="screenInfo"></div>
+        <div class="responsive-controls">
+            <button class="zoom-btn" onclick="adjustZoom(-0.1)" title="缩小">-</button>
+            <button class="zoom-btn" onclick="adjustZoom(0.1)" title="放大">+</button>
+            <button class="zoom-btn" onclick="resetZoom()" title="重置">↺</button>
+        </div>
+        <div class="zoom-level" id="zoomLevel">100%</div>
+        
+        <div class="module-area">
+            <div class="module-category">
+                <h3>基础组件</h3>
+                <div class="module-list" id="moduleList"></div>
+            </div>
+            
+            <div class="edit-section" id="editPanel">
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" onclick="switchTab('elementTab')">元素属性</button>
+                        <button class="tab-button" onclick="switchTab('layerTab')">图层管理</button>
+                        <button class="tab-button" onclick="switchTab('presetTab')">预设组件</button>
+                        <button class="tab-button" onclick="switchTab('deviceTab')">设备预览</button>
+                        <button class="tab-button" onclick="switchTab('optimizeTab')">优化设置</button>
+                        <button class="tab-button" onclick="switchTab('apiTab')">API集成</button>
+                    </div>
+                    
+                    <div class="tab-content" id="elementTab">
+                        <div class="form-group">
+                            <label>位置和大小</label>
+                            <div class="input-with-buttons">
+                                <input type="number" id="posX" placeholder="X">
+                                <button class="adjust-button" onclick="adjustValue('posX', -1)">-</button>
+                                <button class="adjust-button" onclick="adjustValue('posX', 1)">+</button>
+                            </div>
+                            <div class="input-with-buttons" style="margin-top:5px">
+                                <input type="number" id="posY" placeholder="Y">
+                                <button class="adjust-button" onclick="adjustValue('posY', -1)">-</button>
+                                <button class="adjust-button" onclick="adjustValue('posY', 1)">+</button>
+                            </div>
+                            <div class="input-with-buttons" style="margin-top:5px">
+                                <input type="number" id="width" placeholder="宽">
+                                <button class="adjust-button" onclick="adjustValue('width', -5)">-</button>
+                                <button class="adjust-button" onclick="adjustValue('width', 5)">+</button>
+                            </div>
+                            <div class="input-with-buttons" style="margin-top:5px">
+                                <input type="number" id="height" placeholder="高">
+                                <button class="adjust-button" onclick="adjustValue('height', -5)">-</button>
+                                <button class="adjust-button" onclick="adjustValue('height', 5)">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>旋转角度</label>
+                            <div class="input-with-buttons">
+                                <input type="number" id="rotation" placeholder="角度" min="0" max="360">
+                                <button class="adjust-button" onclick="adjustValue('rotation', -1)">-</button>
+                                <button class="adjust-button" onclick="adjustValue('rotation', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>背景颜色</label>
+                            <input type="color" id="backgroundColor" class="color-picker" value="#ffffff">
+                        </div>
+                        <div class="form-group">
+                            <label>边框颜色</label>
+                            <input type="color" id="borderColor" class="color-picker" value="#252525">
+                        </div>
+                        <div class="text-options" id="textOptions">
+                            <div class="form-group">
+                                <label>字体选择</label>
+                                <select id="fontFamily" class="font-select"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>文字颜色</label>
+                                <input type="color" id="textColor" class="text-color-picker" value="#252525">
+                            </div>
+                            <div class="form-group">
+                                <label>文字大小</label>
+                                <div class="input-with-buttons">
+                                    <input type="number" id="fontSize" placeholder="字号" min="8" max="72">
+                                    <button class="adjust-button" onclick="adjustTextSize(-1)">-</button>
+                                    <button class="adjust-button" onclick="adjustTextSize(1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="layerTab" style="display:none">
+                        <div class="layer-list" id="layerList"></div>
+                        <div class="button-group">
+                            <button class="action-button" onclick="moveLayerUp()">上移图层</button>
+                            <button class="action-button" onclick="moveLayerDown()">下移图层</button>
+                            <button class="action-button" onclick="toggleLayerLock()">锁定/解锁</button>
+                            <button class="action-button" onclick="toggleLayerVisibility()">显示/隐藏</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="presetTab" style="display:none">
+                        <div class="preset-grid" id="presetGrid"></div>
+                        <div class="button-group">
+                            <button class="action-button" onclick="addPreset('card')">卡片组件</button>
+                            <button class="action-button" onclick="addPreset('navbar')">导航栏</button>
+                            <button class="action-button" onclick="addPreset('form')">表单</button>
+                            <button class="action-button" onclick="addPreset('grid')">网格布局</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="deviceTab" style="display:none">
+                        <div class="device-preview">
+                            <button class="device-btn active" onclick="switchDevice('desktop')">桌面</button>
+                            <button class="device-btn" onclick="switchDevice('tablet')">平板</button>
+                            <button class="device-btn" onclick="switchDevice('mobile')">手机</button>
+                        </div>
+                        <div class="form-group">
+                            <label>画布尺寸</label>
+                            <div class="input-with-buttons">
+                                <input type="number" id="canvasWidth" placeholder="宽度" value="700">
+                                <button class="adjust-button" onclick="adjustCanvasSize('width', -50)">-</button>
+                                <button class="adjust-button" onclick="adjustCanvasSize('width', 50)">+</button>
+                            </div>
+                            <div class="input-with-buttons" style="margin-top:5px">
+                                <input type="number" id="canvasHeight" placeholder="高度" value="300">
+                                <button class="adjust-button" onclick="adjustCanvasSize('height', -50)">-</button>
+                                <button class="adjust-button" onclick="adjustCanvasSize('height', 50)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="optimizeTab" style="display:none">
+                        <div class="optimize-options">
+                            <label class="optimize-option">
+                                <input type="checkbox" class="optimize-checkbox" id="optimizeCSS" checked>
+                                <span>压缩CSS代码</span>
+                            </label>
+                            <label class="optimize-option">
+                                <input type="checkbox" class="optimize-checkbox" id="optimizeHTML" checked>
+                                <span>压缩HTML代码</span>
+                            </label>
+                            <label class="optimize-option">
+                                <input type="checkbox" class="optimize-checkbox" id="optimizeImages">
+                                <span>压缩图片（模拟）</span>
+                            </label>
+                            <label class="optimize-option">
+                                <input type="checkbox" class="optimize-checkbox" id="removeComments">
+                                <span>移除注释</span>
+                            </label>
+                        </div>
+                        <div class="asset-preview" id="assetPreview">
+                            <div>图片预览区</div>
+                        </div>
+                        <button class="action-button" onclick="optimizeAssets()">优化资产</button>
+                    </div>
+                    
+                    <div class="tab-content" id="apiTab" style="display:none">
+                        <div class="form-group">
+                            <label>API端点</label>
+                            <input type="text" class="api-input" id="apiEndpoint" placeholder="https://api.example.com/data">
+                        </div>
+                        <div class="form-group">
+                            <label>API密钥</label>
+                            <input type="text" class="api-input" id="apiKey" placeholder="输入API密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>数据映射</label>
+                            <textarea class="api-input" id="dataMapping" placeholder="例如: title=results[0].name" rows="3"></textarea>
+                        </div>
+                        <button class="action-button" onclick="testAPIConnection()">测试连接</button>
+                        <button class="action-button" onclick="loadAPIData()">加载数据</button>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="action-button" onclick="deleteSelected()">删除元素</button>
+                    <button class="action-button" onclick="duplicateSelected()">复制元素</button>
+                    <button class="action-button" onclick="showCodeModal()">复制代码</button>
+                    <button class="action-button" onclick="showUploadModal()">上传代码</button>
+                    <button class="action-button" onclick="downloadCode()">下载代码</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-area">
+            <div class="canvas-container-wrapper" id="canvasWrapper">
+                <div class="canvas-container" id="canvas"></div>
+            </div>
+        </div>
+    </div>
+    
+    <input type="file" id="svgFileInput" class="file-input" accept=".svg">
+    <input type="file" id="imageFileInput" class="file-input" accept="image/*">
+    <input type="file" id="codeFileInput" class="file-input" accept=".html,.htm">
+    
+    <div class="modal" id="codeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">HTML代码</div>
+                <button class="close-button" onclick="closeCodeModal()">×</button>
+            </div>
+            <div class="code-display" id="codeDisplay"></div>
+            <button class="copy-code-button" onclick="copyCodeToClipboard()">复制代码</button>
+        </div>
+    </div>
+    
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">上传代码</div>
+                <button class="close-button" onclick="closeUploadModal()">×</button>
+            </div>
+            <div class="upload-options">
+                <div class="upload-option" onclick="showTextUpload()">上传文本代码</div>
+                <div class="upload-option" onclick="uploadCodeFile()">从文件上传</div>
+            </div>
+            <div id="textUploadArea" style="display:none">
+                <textarea class="text-input-area" id="codeText" placeholder="粘贴HTML代码到这里..."></textarea>
+                <button class="action-button" onclick="parseCodeFromText()">解析代码</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const fontsCDN = "https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=Liu+Jian+Mao+Cao&family=Long+Cang&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@400;700&family=Zhi+Mang+Xing&family=ZCOOL+XiaoWei&family=ZCOOL+Addict+Italic&family=ZCOOL+KuHei&family=WuXing&family=Baizi&family=Zhuque+Fangsong&family=Aoboshi+One&family=Dela+Gothic+One&family=DotGothic16&family=Hina+Mincho&family=Kiwi+Maru&family=New+Tegomin&family=RocknRoll+One&family=Stick&family=Train+One&family=Yomogi&family=Yusei+Magic&family=Zilla+Slab&family=Reggae+One&family=Potta+One&family=Kosugi+Maru&family=Hachi+Maru+Pop&family=Yuji+Boku&family=Yuji+Mai&family=Shippori+Mincho&display=swap";
+        const fonts = [
+            {name:'ZCOOL KuaiLe',value:"'ZCOOL KuaiLe', cursive"},
+            {name:'Ma Shan Zheng',value:"'Ma Shan Zheng', cursive"},
+            {name:'ZCOOL QingKe HuangYou',value:"'ZCOOL QingKe HuangYou', cursive"},
+            {name:'Liu Jian Mao Cao',value:"'Liu Jian Mao Cao', cursive"},
+            {name:'Long Cang',value:"'Long Cang', cursive"},
+            {name:'Noto Sans SC',value:"'Noto Sans SC', sans-serif"},
+            {name:'Noto Serif SC',value:"'Noto Serif SC', serif"},
+            {name:'Zhi Mang Xing',value:"'Zhi Mang Xing', cursive"},
+            {name:'ZCOOL XiaoWei',value:"'ZCOOL XiaoWei', serif"},
+            {name:'ZCOOL Addict Italic',value:"'ZCOOL Addict Italic', cursive"},
+            {name:'ZCOOL KuHei',value:"'ZCOOL KuHei', sans-serif"},
+            {name:'WuXing',value:"'WuXing', cursive"},
+            {name:'Baizi',value:"'Baizi', cursive"},
+            {name:'Zhuque Fangsong',value:"'Zhuque Fangsong', cursive"},
+            {name:'Aoboshi One',value:"'Aoboshi One', cursive"},
+            {name:'Dela Gothic One',value:"'Dela Gothic One', cursive"},
+            {name:'DotGothic16',value:"'DotGothic16', sans-serif"},
+            {name:'Hina Mincho',value:"'Hina Mincho', serif"},
+            {name:'Kiwi Maru',value:"'Kiwi Maru', serif"},
+            {name:'New Tegomin',value:"'New Tegomin', serif"},
+            {name:'RocknRoll One',value:"'RocknRoll One', sans-serif"},
+            {name:'Stick',value:"'Stick', sans-serif"},
+            {name:'Train One',value:"'Train One', cursive"},
+            {name:'Yomogi',value:"'Yomogi', cursive"},
+            {name:'Yusei Magic',value:"'Yusei Magic', cursive"},
+            {name:'Zilla Slab',value:"'Zilla Slab', serif"},
+            {name:'Reggae One',value:"'Reggae One', cursive"},
+            {name:'Potta One',value:"'Potta One', cursive"},
+            {name:'Kosugi Maru',value:"'Kosugi Maru', sans-serif"},
+            {name:'Hachi Maru Pop',value:"'Hachi Maru Pop', cursive"},
+            {name:'Yuji Boku',value:"'Yuji Boku', serif"},
+            {name:'Yuji Mai',value:"'Yuji Mai', serif"},
+            {name:'Shippori Mincho',value:"'Shippori Mincho', serif"}
+        ];
+
+        const components = [
+            {type:'rectangle',name:'矩形'},
+            {type:'text',name:'文字'},
+            {type:'divider',name:'分割线'},
+            {type:'button',name:'按钮'},
+            {type:'svg',name:'SVG图标'},
+            {type:'image',name:'图片'}
+        ];
+
+        const elementConfigs = {
+            rectangle:{width:100,height:60,text:'矩形'},
+            text:{width:150,height:50,text:'双击编辑文本',fontSize:14},
+            button:{width:100,height:40,text:'按钮'},
+            divider:{width:200,height:2},
+            svg:{width:80,height:80},
+            image:{width:100,height:100}
+        };
+
+        const presets = {
+            card: {
+                name: '卡片',
+                elements: [
+                    {type:'rectangle',x:50,y:50,width:200,height:150,text:'卡片标题',fontSize:16,color:'#252525'},
+                    {type:'rectangle',x:60,y:80,width:180,height:100,text:'卡片内容',fontSize:12,color:'#666'}
+                ]
+            },
+            navbar: {
+                name: '导航栏',
+                elements: [
+                    {type:'rectangle',x:0,y:0,width:700,height:60,text:'',backgroundColor:'#252525'},
+                    {type:'text',x:20,y:20,width:100,height:30,text:'LOGO',color:'#fff',fontSize:18},
+                    {type:'button',x:150,y:15,width:80,height:30,text:'首页'},
+                    {type:'button',x:250,y:15,width:80,height:30,text:'产品'},
+                    {type:'button',x:350,y:15,width:80,height:30,text:'关于'}
+                ]
+            },
+            form: {
+                name: '表单',
+                elements: [
+                    {type:'text',x:50,y:50,width:200,height:30,text:'用户名:',fontSize:14},
+                    {type:'rectangle',x:150,y:50,width:200,height:30,text:''},
+                    {type:'text',x:50,y:100,width:200,height:30,text:'密码:',fontSize:14},
+                    {type:'rectangle',x:150,y:100,width:200,height:30,text:''},
+                    {type:'button',x:150,y:150,width:100,height:35,text:'提交'}
+                ]
+            },
+            grid: {
+                name: '网格',
+                elements: [
+                    {type:'rectangle',x:50,y:50,width:150,height:100,text:'项目1'},
+                    {type:'rectangle',x:220,y:50,width:150,height:100,text:'项目2'},
+                    {type:'rectangle',x:390,y:50,width:150,height:100,text:'项目3'},
+                    {type:'rectangle',x:50,y:170,width:150,height:100,text:'项目4'},
+                    {type:'rectangle',x:220,y:170,width:150,height:100,text:'项目5'},
+                    {type:'rectangle',x:390,y:170,width:150,height:100,text:'项目6'}
+                ]
+            }
+        };
+
+        let selectedElement = null;
+        let elementCount = 0;
+        let layers = [];
+        let currentDevice = 'desktop';
+        let currentZoom = 1.0; // 初始缩放比例为1
+        const canvas = document.getElementById('canvas');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const svgFileInput = document.getElementById('svgFileInput');
+        const imageFileInput = document.getElementById('imageFileInput');
+        const codeFileInput = document.getElementById('codeFileInput');
+        const textOptions = document.getElementById('textOptions');
+        const screenInfo = document.getElementById('screenInfo');
+        const zoomLevel = document.getElementById('zoomLevel');
+
+        const svgIcons = {
+            checked: '<?xml version="1.0" encoding="UTF-8"?><svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 44C29.5228 44 34.5228 41.7614 38.1421 38.1421C41.7614 34.5228 44 29.5228 44 24C44 18.4772 41.7614 13.4772 38.1421 9.85786C34.5228 6.23858 29.5228 4 24 4C18.4772 4 13.4772 6.23858 9.85786 9.85786C6.23858 13.4772 4 18.4772 4 24C4 29.5228 6.23858 34.5228 9.85786 38.1421C13.4772 41.7614 18.4772 44 24 44Z" fill="none" stroke="#333" stroke-width="4" stroke-linejoin="round"/><path d="M16 24L22 30L34 18" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            visible: '<?xml version="1.0" encoding="UTF-8"?><svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 36C35.0457 36 44 24 44 24C44 24 35.0457 12 24 12C12.9543 12 4 24 4 24C4 24 12.9543 36 24 36Z" fill="none" stroke="#333" stroke-width="4" stroke-linejoin="round"/><path d="M24 29C26.7614 29 29 26.7614 29 24C29 21.2386 26.7614 19 24 19C21.2386 19 19 21.2386 19 24C19 26.7614 21.2386 29 24 29Z" fill="none" stroke="#333" stroke-width="4" stroke-linejoin="round"/></svg>',
+            hidden: '<?xml version="1.0" encoding="UTF-8"?><svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.85786 18C6.23858 21 4 24 4 24C4 24 12.9543 36 24 36C25.3699 36 26.7076 35.8154 28 35.4921M20.0318 12.5C21.3144 12.1816 22.6414 12 24 12C35.0457 12 44 24 44 24C44 24 41.7614 27 38.1421 30" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.3142 20.6211C19.4981 21.5109 19 22.6972 19 23.9998C19 26.7612 21.2386 28.9998 24 28.9998C25.3627 28.9998 26.5981 28.4546 27.5 27.5705" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M42 42L6 6" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            locked: '<?xml version="1.0" encoding="UTF-8"?><svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="7" y="22.0476" width="34" height="22" rx="2" fill="none" stroke="#333" stroke-width="4" stroke-linejoin="round"/><path d="M14 22V14.0047C13.9948 8.87022 17.9227 4.56718 23.0859 4.05117C28.249 3.53516 32.9673 6.97408 34 12.0059" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 30V36" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            unlocked: '<?xml version="1.0" encoding="UTF-8"?><svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="22" width="36" height="22" rx="2" fill="none" stroke="#333" stroke-width="4" stroke-linejoin="round"/><path d="M14 22V14C14 8.47715 18.4772 4 24 4C29.5228 4 34 8.47715 34 14V22" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 30V36" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        };
+
+        function init() {
+            renderComponents();
+            renderFonts();
+            renderPresets();
+            setupEventListeners();
+            updateLayers();
+            
+            // 初始自适应调整
+            adjustForScreenSize();
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', adjustForScreenSize);
+            
+            // 更新屏幕信息显示
+            updateScreenInfo();
+        }
+
+        // 根据屏幕大小自适应调整
+        function adjustForScreenSize() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            
+            // 计算可用宽度（减去左侧菜单栏宽度）
+            const menuWidth = 270; // 左侧菜单栏固定宽度
+            const availableWidth = screenWidth - menuWidth - 40; // 减去padding
+            
+            // 计算可用高度
+            const availableHeight = screenHeight - 40; // 减去padding
+            
+            // 默认画布尺寸
+            const canvasWidth = 700;
+            const canvasHeight = 300;
+            
+            // 计算水平和垂直方向的比例
+            const widthRatio = availableWidth / canvasWidth;
+            const heightRatio = availableHeight / canvasHeight;
+            
+            // 取较小的比例，确保画布完全可见
+            let scaleRatio = Math.min(widthRatio, heightRatio, 1);
+            
+            // 确保最小缩放比例为30%
+            scaleRatio = Math.max(scaleRatio, 0.3);
+            
+            // 应用缩放
+            applyZoom(scaleRatio);
+            
+            // 更新屏幕信息
+            updateScreenInfo();
+        }
+
+        // 应用缩放
+        function applyZoom(scale) {
+            currentZoom = scale;
+            canvasWrapper.style.transform = `scale(${scale})`;
+            zoomLevel.textContent = `${Math.round(scale * 100)}%`;
+            
+            // 更新画布容器的尺寸以适应缩放
+            const canvasWidth = canvas.offsetWidth;
+            const canvasHeight = canvas.offsetHeight;
+            canvasWrapper.style.width = `${canvasWidth * scale}px`;
+            canvasWrapper.style.height = `${canvasHeight * scale}px`;
+        }
+
+        // 调整缩放
+        function adjustZoom(delta) {
+            let newZoom = currentZoom + delta;
+            // 限制缩放范围在30%到200%之间
+            newZoom = Math.max(0.3, Math.min(2.0, newZoom));
+            applyZoom(newZoom);
+        }
+
+        // 重置缩放
+        function resetZoom() {
+            adjustForScreenSize();
+        }
+
+        // 更新屏幕信息显示
+        function updateScreenInfo() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const isMobile = screenWidth <= 768;
+            
+            screenInfo.textContent = `${screenWidth}×${screenHeight} ${isMobile ? '📱' : '💻'}`;
+            screenInfo.style.display = 'block';
+            
+            // 如果是移动设备，显示更简化的界面
+            if (screenWidth <= 768) {
+                // 移动端简化一些元素
+                document.querySelectorAll('.module-item').forEach(item => {
+                    if (screenWidth <= 480) {
+                        item.style.padding = '8px 4px';
+                        item.style.fontSize = '10px';
+                    }
+                });
+            }
+        }
+
+        function renderComponents() {
+            const moduleList = document.getElementById('moduleList');
+            moduleList.innerHTML = components.map(c => 
+                `<div class="module-item" data-type="${c.type}">${c.name}</div>`
+            ).join('');
+        }
+
+        function renderFonts() {
+            const fontSelect = document.getElementById('fontFamily');
+            fontSelect.innerHTML = fonts.map(f => 
+                `<option value="${f.value}" ${f.name==='Noto Sans SC'?'selected':''}>${f.name}</option>`
+            ).join('');
+        }
+
+        function renderPresets() {
+            const presetGrid = document.getElementById('presetGrid');
+            presetGrid.innerHTML = Object.keys(presets).map(key => 
+                `<div class="preset-item" onclick="addPreset('${key}')">${presets[key].name}</div>`
+            ).join('');
+        }
+
+        function setupEventListeners() {
+            document.getElementById('moduleList').addEventListener('click', (e) => {
+                if(e.target.classList.contains('module-item')) {
+                    const type = e.target.dataset.type;
+                    if(type === 'svg') svgFileInput.click();
+                    else if(type === 'image') imageFileInput.click();
+                    else createElement(type, 50, 50);
+                }
+            });
+
+            svgFileInput.addEventListener('change', (e) => handleFile(e.target.files[0], 'svg'));
+            imageFileInput.addEventListener('change', (e) => handleFile(e.target.files[0], 'image'));
+            codeFileInput.addEventListener('change', (e) => handleCodeFile(e.target.files[0]));
+            
+            canvas.addEventListener('click', (e) => {
+                if(e.target === canvas) {
+                    document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+                    selectedElement = null;
+                    textOptions.style.display = 'none';
+                    updateLayers();
+                }
+            });
+
+            window.addEventListener('click', (e) => {
+                if(e.target === document.getElementById('codeModal')) closeCodeModal();
+                if(e.target === document.getElementById('uploadModal')) closeUploadModal();
+            });
+            
+            // 添加触摸支持
+            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+            
+            // 监听设备方向变化
+            window.addEventListener('orientationchange', function() {
+                setTimeout(adjustForScreenSize, 200);
+            });
+        }
+
+        // 触摸事件处理
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        
+        function handleTouchStart(e) {
+            if(e.touches.length === 1) {
+                const touch = e.touches[0];
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+            }
+        }
+        
+        function handleTouchMove(e) {
+            if(e.touches.length === 1) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - lastTouchX;
+                const deltaY = touch.clientY - lastTouchY;
+                
+                // 如果是画布滚动
+                if(e.target === canvas) {
+                    // 可以添加画布滚动逻辑
+                }
+                
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+            }
+        }
+
+        function handleFile(file, type) {
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if(type === 'svg') createSVGElement(e.target.result, 50, 50);
+                else if(type === 'image') createImageElement(e.target.result, 50, 50);
+            };
+            type === 'svg' ? reader.readAsText(file) : reader.readAsDataURL(file);
+            this.value = '';
+        }
+
+        function handleCodeFile(file) {
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                parseHTMLCode(e.target.result);
+                closeUploadModal();
+            };
+            reader.readAsText(file);
+            this.value = '';
+        }
+
+        function createSVGElement(svgContent, x, y) {
+            createElementBase('svg', x, y, {innerHTML: svgContent, svgContent: btoa(unescape(encodeURIComponent(svgContent)))});
+        }
+
+        function createImageElement(imageData, x, y) {
+            createElementBase('image', x, y, {
+                backgroundImage: `url(${imageData})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundColor: 'transparent',
+                textContent: '',
+                imageData: imageData
+            });
+        }
+
+        function createElement(type, x, y, customConfig = {}) {
+            const config = {...elementConfigs[type], ...customConfig};
+            const element = createElementBase(type, x, y, config);
+            
+            if(type === 'text') {
+                element.contentEditable = true;
+                element.dataset.fontSize = config.fontSize;
+                element.style.fontSize = config.fontSize + 'px';
+                element.style.fontFamily = config.fontFamily || "'Noto Sans SC', sans-serif";
+                element.style.color = config.color || '#252525';
+                if(config.text) element.textContent = config.text;
+            } else if(type === 'button') {
+                element.style.display = 'flex';
+                element.style.alignItems = 'center';
+                element.style.justifyContent = 'center';
+                if(config.text) element.textContent = config.text;
+            } else if(type === 'divider') {
+                element.className = 'canvas-element divider-element';
+                element.innerHTML = '<div class="element-content"></div>';
+            }
+            
+            return element;
+        }
+
+        function createElementBase(type, x, y, config) {
+            elementCount++;
+            const element = document.createElement('div');
+            element.className = type === 'svg' ? 'canvas-element svg-element' : 'canvas-element';
+            element.dataset.id = elementCount;
+            element.dataset.type = type;
+            element.dataset.locked = false;
+            element.dataset.visible = true;
+            
+            element.style.left = x + 'px';
+            element.style.top = y + 'px';
+            element.style.width = (config.width || 100) + 'px';
+            element.style.height = (config.height || 50) + 'px';
+            if(config.textContent !== undefined) element.textContent = config.textContent || config.text;
+            if(config.innerHTML) element.innerHTML = config.innerHTML;
+            if(config.backgroundImage) element.style.backgroundImage = config.backgroundImage;
+            if(config.backgroundColor) element.style.backgroundColor = config.backgroundColor;
+            if(config.svgContent) element.dataset.svgContent = config.svgContent;
+            if(config.imageData) element.dataset.imageData = config.imageData;
+            if(config.color) element.style.color = config.color;
+            if(config.fontSize) element.style.fontSize = config.fontSize + 'px';
+            if(config.fontFamily) element.style.fontFamily = config.fontFamily;
+            
+            element.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if(element.dataset.locked === 'true') return;
+                selectElement(element);
+            });
+            
+            if(type === 'text') {
+                element.addEventListener('dblclick', () => element.focus());
+                element.addEventListener('input', () => element.dataset.textContent = element.textContent);
+            }
+            
+            // 移动端触摸优化
+            element.addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+                if(this.dataset.locked === 'true') return;
+                selectElement(this);
+            });
+            
+            canvas.appendChild(element);
+            selectElement(element);
+            updateLayers();
+            return element;
+        }
+
+        function selectElement(element) {
+            document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedElement = element;
+            updateEditPanel();
+            updateLayers();
+        }
+
+        function updateEditPanel() {
+            if(!selectedElement) return;
+            
+            ['posX','posY','width','height'].forEach(id => {
+                document.getElementById(id).value = parseInt(selectedElement.style[id==='posX'?'left':id==='posY'?'top':'width'=='width'?'width':'height']) || 0;
+            });
+            
+            if(selectedElement.dataset.type === 'text') {
+                textOptions.style.display = 'block';
+                document.getElementById('fontFamily').value = selectedElement.style.fontFamily || "'Noto Sans SC', sans-serif";
+                document.getElementById('textColor').value = selectedElement.style.color || '#252525';
+                document.getElementById('fontSize').value = selectedElement.dataset.fontSize || '14';
+            } else {
+                textOptions.style.display = 'none';
+            }
+            
+            bindInputEvents();
+        }
+
+        function bindInputEvents() {
+            const styleMap = {
+                posX: v => selectedElement.style.left = v + 'px',
+                posY: v => selectedElement.style.top = v + 'px',
+                width: v => selectedElement.style.width = v + 'px',
+                height: v => selectedElement.style.height = v + 'px',
+                rotation: v => selectedElement.style.transform = `rotate(${v}deg)`,
+                backgroundColor: v => selectedElement.style.backgroundColor = v,
+                borderColor: v => selectedElement.style.borderColor = v
+            };
+            
+            Object.keys(styleMap).forEach(id => {
+                document.getElementById(id).oninput = () => styleMap[id](document.getElementById(id).value);
+            });
+            
+            document.getElementById('fontFamily').onchange = function() {
+                if(selectedElement && selectedElement.dataset.type === 'text') selectedElement.style.fontFamily = this.value;
+            };
+            
+            document.getElementById('textColor').oninput = function() {
+                if(selectedElement && selectedElement.dataset.type === 'text') selectedElement.style.color = this.value;
+            };
+            
+            document.getElementById('fontSize').oninput = function() {
+                if(selectedElement && selectedElement.dataset.type === 'text') {
+                    selectedElement.style.fontSize = this.value + 'px';
+                    selectedElement.dataset.fontSize = this.value;
+                }
+            };
+        }
+
+        function updateLayers() {
+            layers = Array.from(document.querySelectorAll('.canvas-element'));
+            const layerList = document.getElementById('layerList');
+            layerList.innerHTML = '';
+            
+            layers.forEach((layer, index) => {
+                const layerItem = document.createElement('div');
+                layerItem.className = `layer-item ${layer === selectedElement ? 'selected' : ''}`;
+                const visibleIcon = layer.dataset.visible === 'true' ? svgIcons.visible : svgIcons.hidden;
+                const lockIcon = layer.dataset.locked === 'true' ? svgIcons.locked : svgIcons.unlocked;
+                layerItem.innerHTML = `
+                    <div class="layer-name">${layer.dataset.type || '元素'} ${index + 1}</div>
+                    <div class="layer-controls">
+                        <button class="layer-control-btn" onclick="toggleLayerVisibility('${layer.dataset.id}')">${visibleIcon}</button>
+                        <button class="layer-control-btn" onclick="toggleLayerLock('${layer.dataset.id}')">${lockIcon}</button>
+                    </div>
+                `;
+                layerItem.onclick = () => selectElement(layer);
+                layerList.appendChild(layerItem);
+            });
+        }
+
+        function moveLayerUp() {
+            if(!selectedElement) return;
+            const index = layers.indexOf(selectedElement);
+            if(index < layers.length - 1) {
+                canvas.removeChild(selectedElement);
+                canvas.appendChild(selectedElement);
+                updateLayers();
+            }
+        }
+
+        function moveLayerDown() {
+            if(!selectedElement) return;
+            const index = layers.indexOf(selectedElement);
+            if(index > 0) {
+                canvas.removeChild(selectedElement);
+                canvas.insertBefore(selectedElement, layers[index - 1]);
+                updateLayers();
+            }
+        }
+
+        function toggleLayerLock(elementId) {
+            const element = elementId ? document.querySelector(`[data-id="${elementId}"]`) : selectedElement;
+            if(element) {
+                element.dataset.locked = element.dataset.locked === 'true' ? 'false' : 'true';
+                updateLayers();
+            }
+        }
+
+        function toggleLayerVisibility(elementId) {
+            const element = elementId ? document.querySelector(`[data-id="${elementId}"]`) : selectedElement;
+            if(element) {
+                element.dataset.visible = element.dataset.visible === 'true' ? 'false' : 'true';
+                element.style.display = element.dataset.visible === 'true' ? 'flex' : 'none';
+                updateLayers();
+            }
+        }
+
+        function addPreset(presetKey) {
+            if(presets[presetKey]) {
+                presets[presetKey].elements.forEach(element => {
+                    createElement(element.type, element.x, element.y, element);
+                });
+            }
+        }
+
+        function switchDevice(device) {
+            currentDevice = device;
+            document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`button[onclick="switchDevice('${device}')"]`).classList.add('active');
+            
+            const sizes = {
+                desktop: {width: 700, height: 300},
+                tablet: {width: 500, height: 300},
+                mobile: {width: 375, height: 667}
+            };
+            
+            const size = sizes[device];
+            canvas.style.width = size.width + 'px';
+            canvas.style.height = size.height + 'px';
+            document.getElementById('canvasWidth').value = size.width;
+            document.getElementById('canvasHeight').value = size.height;
+            
+            // 切换设备后重新调整缩放
+            setTimeout(adjustForScreenSize, 100);
+        }
+
+        function adjustCanvasSize(dimension, change) {
+            const widthInput = document.getElementById('canvasWidth');
+            const heightInput = document.getElementById('canvasHeight');
+            
+            if(dimension === 'width') {
+                let width = parseInt(widthInput.value) || 700;
+                width += change;
+                width = Math.max(200, Math.min(1200, width));
+                widthInput.value = width;
+                canvas.style.width = width + 'px';
+            } else {
+                let height = parseInt(heightInput.value) || 300;
+                height += change;
+                height = Math.max(200, Math.min(800, height));
+                heightInput.value = height;
+                canvas.style.height = height + 'px';
+            }
+            
+            // 调整画布大小后重新计算缩放
+            setTimeout(adjustForScreenSize, 100);
+        }
+
+        function optimizeAssets() {
+            alert('资产优化功能已执行（模拟）');
+            const preview = document.getElementById('assetPreview');
+            preview.innerHTML = '<div>✅ 资产已优化</div>';
+        }
+
+        function testAPIConnection() {
+            const endpoint = document.getElementById('apiEndpoint').value;
+            if(!endpoint) {
+                alert('请输入API端点');
+                return;
+            }
+            alert(`测试连接到: ${endpoint}\n（模拟功能）`);
+        }
+
+        function loadAPIData() {
+            alert('从API加载数据（模拟）\n这会将API数据映射到文本元素');
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).style.display = 'block';
+            document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+
+        function showUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+            document.getElementById('textUploadArea').style.display = 'none';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+        }
+
+        function showTextUpload() {
+            document.getElementById('textUploadArea').style.display = 'block';
+        }
+
+        function uploadCodeFile() {
+            codeFileInput.click();
+        }
+
+        function parseCodeFromText() {
+            const codeText = document.getElementById('codeText').value;
+            if(codeText) {
+                parseHTMLCode(codeText);
+                closeUploadModal();
+            } else {
+                alert('请输入HTML代码');
+            }
+        }
+
+        function parseHTMLCode(html) {
+            try {
+                clearCanvas();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const container = doc.querySelector('.container');
+                if(container) {
+                    const elements = container.querySelectorAll('.element');
+                    elements.forEach(el => {
+                        const style = el.style;
+                        const left = parseInt(style.left) || 0;
+                        const top = parseInt(style.top) || 0;
+                        const width = parseInt(style.width) || 100;
+                        const height = parseInt(style.height) || 50;
+                        const bgColor = style.backgroundColor || '#fff';
+                        const borderColor = style.borderColor || '#252525';
+                        const text = el.textContent;
+                        
+                        let elementType = 'rectangle';
+                        if(el.innerHTML.includes('<div style="width:100%')) elementType = 'divider';
+                        else if(el.innerHTML.includes('<svg')) elementType = 'svg';
+                        else if(el.style.backgroundImage) elementType = 'image';
+                        else if(text && text.length > 0) elementType = 'text';
+                        
+                        const config = {
+                            width, height,
+                            backgroundColor: bgColor,
+                            borderColor: borderColor,
+                            text: text
+                        };
+                        
+                        if(elementType === 'text') {
+                            config.fontFamily = style.fontFamily || "'Noto Sans SC', sans-serif";
+                            config.color = style.color || '#252525';
+                            config.fontSize = parseInt(style.fontSize) || 14;
+                        }
+                        
+                        createElement(elementType, left, top, config);
+                    });
+                    alert(`成功导入 ${elements.length} 个元素`);
+                } else {
+                    alert('未找到有效的UI布局代码');
+                }
+            } catch(error) {
+                alert('解析代码时出错: ' + error.message);
+            }
+        }
+
+        function clearCanvas() {
+            while(canvas.firstChild) {
+                canvas.removeChild(canvas.firstChild);
+            }
+            elementCount = 0;
+            selectedElement = null;
+            updateLayers();
+        }
+
+        function adjustValue(inputId, change) {
+            const input = document.getElementById(inputId);
+            let value = parseInt(input.value) || 0;
+            value += change;
+            input.value = value;
+            updateElementStyle(inputId, value);
+        }
+
+        function adjustTextSize(change) {
+            if(!selectedElement || selectedElement.dataset.type !== 'text') return;
+            const input = document.getElementById('fontSize');
+            let value = parseInt(input.value) || 14;
+            value = Math.min(72, Math.max(8, value + change));
+            input.value = value;
+            selectedElement.style.fontSize = value + 'px';
+            selectedElement.dataset.fontSize = value;
+        }
+
+        function updateElementStyle(property, value) {
+            if(!selectedElement) return;
+            const styleMap = {
+                posX: () => selectedElement.style.left = value + 'px',
+                posY: () => selectedElement.style.top = value + 'px',
+                width: () => selectedElement.style.width = value + 'px',
+                height: () => selectedElement.style.height = value + 'px',
+                rotation: () => selectedElement.style.transform = `rotate(${value}deg)`,
+                backgroundColor: () => selectedElement.style.backgroundColor = value,
+                borderColor: () => selectedElement.style.borderColor = value
+            };
+            if(styleMap[property]) styleMap[property]();
+        }
+
+        function deleteSelected() {
+            if(selectedElement) {
+                selectedElement.remove();
+                selectedElement = null;
+                textOptions.style.display = 'none';
+                updateLayers();
+            }
+        }
+
+        function duplicateSelected() {
+            if(!selectedElement) return;
+            const rect = selectedElement.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = rect.left - canvasRect.left + 20;
+            const y = rect.top - canvasRect.top + 20;
+            
+            if(selectedElement.dataset.svgContent) {
+                const svgContent = decodeURIComponent(escape(atob(selectedElement.dataset.svgContent)));
+                createSVGElement(svgContent, x, y);
+            } else if(selectedElement.dataset.imageData) {
+                createImageElement(selectedElement.dataset.imageData, x, y);
+            } else if(selectedElement.dataset.type === 'text') {
+                const newEl = createElementBase('text', x, y, elementConfigs.text);
+                newEl.contentEditable = true;
+                newEl.dataset.fontSize = selectedElement.dataset.fontSize || '14';
+                newEl.style.fontSize = (selectedElement.dataset.fontSize || 14) + 'px';
+                newEl.style.fontFamily = selectedElement.style.fontFamily;
+                newEl.style.color = selectedElement.style.color;
+                newEl.textContent = selectedElement.textContent;
+            } else {
+                createElement(selectedElement.dataset.type, x, y);
+            }
+        }
+
+        function showCodeModal() {
+            document.getElementById('codeDisplay').textContent = generateHTMLCode();
+            document.getElementById('codeModal').style.display = 'flex';
+        }
+
+        function closeCodeModal() {
+            document.getElementById('codeModal').style.display = 'none';
+        }
+
+        function downloadCode() {
+            const htmlCode = generateHTMLCode();
+            const blob = new Blob([htmlCode], {type:'text/html'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ui-layout.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function copyCodeToClipboard() {
+            const textArea = document.createElement('textarea');
+            textArea.value = document.getElementById('codeDisplay').textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('代码已复制到剪贴板！');
+        }
+
+        function generateHTMLCode() {
+            const optimizeCSS = document.getElementById('optimizeCSS').checked;
+            const optimizeHTML = document.getElementById('optimizeHTML').checked;
+            const removeComments = document.getElementById('removeComments').checked;
+            
+            let elementsHTML = '';
+            document.querySelectorAll('.canvas-element').forEach(el => {
+                const style = el.style;
+                const type = el.dataset.type;
+                const props = {
+                    left: parseInt(style.left) || 0,
+                    top: parseInt(style.top) || 0,
+                    width: parseInt(style.width) || 100,
+                    height: parseInt(style.height) || 50,
+                    bgColor: style.backgroundColor || '#fff',
+                    borderColor: style.borderColor || '#252525',
+                    borderRadius: style.borderRadius || '6px',
+                    transform: style.transform || '',
+                    fontFamily: style.fontFamily || "'Noto Sans SC', sans-serif",
+                    color: style.color || '#252525',
+                    fontSize: el.dataset.fontSize || '14'
+                };
+                
+                let elementStyle = `left:${props.left}px;top:${props.top}px;width:${props.width}px;height:${props.height}px;`;
+                elementStyle += `background-color:${props.bgColor};border-color:${props.borderColor};border-radius:${props.borderRadius};`;
+                if(props.transform) elementStyle += `transform:${props.transform};`;
+                
+                if(type === 'divider') {
+                    elementsHTML += `        <div class="element" style="${elementStyle}"><div style="width:100%;height:2px;background:#252525"></div></div>\n`;
+                } else if(el.dataset.svgContent) {
+                    const svgContent = decodeURIComponent(escape(atob(el.dataset.svgContent)));
+                    elementsHTML += `        <div class="element" style="${elementStyle}">${svgContent}</div>\n`;
+                } else if(el.dataset.imageData) {
+                    elementsHTML += `        <div class="element" style="${elementStyle}background-image:url('${el.dataset.imageData}');background-size:cover;background-position:center"></div>\n`;
+                } else if(type === 'text') {
+                    elementStyle += `font-family:${props.fontFamily};color:${props.color};font-size:${props.fontSize}px;`;
+                    elementsHTML += `        <div class="element" style="${elementStyle}">${el.textContent||''}</div>\n`;
+                } else {
+                    elementsHTML += `        <div class="element" style="${elementStyle}">${el.textContent||''}</div>\n`;
+                }
+            });
+            
+            const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成的UI布局</title>
+    <link href="${fontsCDN}" rel="stylesheet">
+    <style>
+        .container{position:relative;width:${canvas.style.width || '700px'};height:${canvas.style.height || '300px'};margin:0 auto;border:2px solid #252525;background:#fff;border-radius:8px}
+        .element{position:absolute;border:1px solid #252525;background:#fff;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;overflow:hidden;word-break:break-word;color:#252525;border-radius:6px}
+    </style>
+</head>
+<body>
+    <div class="container">
+${elementsHTML}    </div>
+</body>
+</html>`;
+            
+            return optimizeHTML ? html.replace(/\s+/g, ' ').trim() : html;
+        }
+
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>
